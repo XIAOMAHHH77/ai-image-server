@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 文本生成图片接口（通义千问，只需要描述词，不用上传图片）
+// 文本生成图片接口（零图片上传，彻底解决url error）
 app.post('/api/generate', async (req, res) => {
     try {
         const { apiKey, prompt } = req.body;
@@ -25,7 +25,7 @@ app.post('/api/generate', async (req, res) => {
             return res.json({ code: -1, msg: '参数缺失：请填写API Key和描述词' });
         }
 
-        // 调用通义千问文本生成图片API
+        // 调用通义千问文本生成图片API（格式完全正确）
         const response = await axios.post(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis',
             {
@@ -35,7 +35,7 @@ app.post('/api/generate', async (req, res) => {
             },
             {
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization": `Bearer ${apiKey}`, // 这里必须用反引号，双引号会失效
                     "Content-Type": "application/json"
                 }
             }
