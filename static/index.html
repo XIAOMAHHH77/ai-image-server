@@ -3,135 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qwen-Image 2.0 服装模特生成</title>
+    <title>AI文本生成图片工具</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{max-width:800px;margin:30px auto;padding:0 20px;font-family:"微软雅黑";}
-        .box{background:#fff;padding:20px;border-radius:10px;margin:15px 0;box-shadow:0 2px 8px #eee;}
-        h2{font-size:18px;margin-bottom:10px;}
-        input,textarea{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
-        button{padding:10px 25px;background:#1677ff;color:#fff;border:none;border-radius:6px;cursor:pointer;}
-        button:disabled{background:#90b8f8;}
-        img{max-width:300px;margin-top:10px;display:none;border-radius:6px;}
-        .loading{color:#1677ff;margin:10px 0;display:none;}
-        .error{color:red;margin:10px 0;display:none;}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(-45deg, #0c1445, #1a2980, #26d0ce, #103783);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            padding: 20px;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            color: white;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 16px;
+        }
+
+        textarea {
+            height: 120px;
+            resize: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #26d0ce;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #1a2980;
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        #resultImage {
+            max-width: 100%;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .error {
+            color: #ff6b6b;
+            margin-top: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>1. 填写百炼API Key</h2>
-        <input type="text" id="apiKey" placeholder="粘贴你的API Key（sk-开头）">
+    <div class="container">
+        <h1>AI文本生成图片</h1>
+        
+        <div class="form-group">
+            <label for="apiKey">阿里云API Key</label>
+            <input type="password" id="apiKey" placeholder="请输入你的API Key">
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">图片描述词</label>
+            <textarea id="prompt" placeholder="例如：一只可爱的橘猫，在阳光下睡觉，治愈风格"></textarea>
+        </div>
+
+        <button id="generateBtn">生成图片</button>
+
+        <div class="error" id="errorMsg"></div>
+
+        <div class="result">
+            < img id="resultImage" alt="生成的图片">
+        </div>
     </div>
 
-    <div class="box">
-        <h2>2. 上传服装图片</h2>
-        <input type="file" id="uploadImg" accept="image/*">
-        <img id="previewImg" alt="原图预览">
-    </div>
+    <script>
+        const apiKeyInput = document.getElementById('apiKey');
+        const promptInput = document.getElementById('prompt');
+        const generateBtn = document.getElementById('generateBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultImage = document.getElementById('resultImage');
 
-    <div class="box">
-        <h2>3. 描述词</h2>
-        <textarea id="prompt" rows="3" placeholder="帅哥模特穿着这件红色衣服，户外高清写真，写实细节，自然光影"></textarea>
-        <button id="genBtn">开始生成</button>
-        <div class="loading" id="loadingText">正在生成中，请稍候...</div>
-        <div class="error" id="errorText"></div>
-    </div>
+        generateBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const prompt = promptInput.value.trim();
 
-    <div class="box">
-        <h2>4. 生成结果</h2>
-        <img id="resultImg" alt="AI生成结果">
-    </div>
+            if (!apiKey || !prompt) {
+                errorMsg.textContent = '请填写API Key和描述词';
+                return;
+            }
 
-<script>
-const apiKeyInput = document.getElementById('apiKey');
-const uploadInput = document.getElementById('uploadImg');
-const previewImg = document.getElementById('previewImg');
-const promptInput = document.getElementById('prompt');
-const genBtn = document.getElementById('genBtn');
-const loadingText = document.getElementById('loadingText');
-const errorText = document.getElementById('errorText');
-const resultImg = document.getElementById('resultImg');
+            generateBtn.disabled = true;
+            generateBtn.textContent = '生成中...';
+            errorMsg.textContent = '';
+            resultImage.style.display = 'none';
 
-let base64Img = '';
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKey, prompt })
+                });
 
-// 图片预览
-uploadInput.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(res) {
-        previewImg.src = res.target.result;
-        previewImg.style.display = 'block';
-        base64Img = res.target.result;
-        errorText.style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-});
+                const data = await response.json();
 
-// 生成逻辑
-genBtn.addEventListener('click', async function() {
-    const apiKey = apiKeyInput.value.trim();
-    const prompt = promptInput.value.trim();
-
-    // 严格校验顺序
-    if (!apiKey) {
-        showError('请先填写API Key');
-        return;
-    }
-    if (!base64Img) {
-        showError('请先上传图片');
-        return;
-    }
-    if (!prompt) {
-        showError('请填写生成描述词');
-        return;
-    }
-
-    genBtn.disabled = true;
-    loadingText.style.display = 'block';
-    errorText.style.display = 'none';
-    resultImg.style.display = 'none';
-
-    try {
-        // 百炼官方图文生图专用接口，原生支持Base64图片，不用额外上传
-        const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: "qwen-image-2.0",
-                input: {
-                    reference_image: base64Img,
-                    prompt: prompt
-                },
-                parameters: {
-                    size: "1024*1024"
+                if (data.code !== undefined && data.code !== 0) {
+                    throw new Error(data.msg || '生成失败');
                 }
-            })
-        })
 
-        const data = await res.json();
-        if(data.output?.results?.[0]?.url){
-            resultImg.src = data.output.results[0].url;
-            resultImg.style.display = 'block';
-        }else{
-            throw new Error(JSON.stringify(data))
-        }
-    }catch(err){
-        showError('生成失败：'+err.message)
-        console.error(err)
-    }finally{
-        genBtn.disabled = false;
-        loadingText.style.display = 'none';
-    }
-})
-
-function showError(msg){
-    errorText.innerText = msg
-    errorText.style.display = 'block'
-}
-</script>
+                // 通义千问返回的图片URL
+                const imageUrl = data.output?.results?.[0]?.url || data.output?.task_id;
+                if (imageUrl) {
+                    resultImage.src = imageUrl;
+                    resultImage.style.display = 'block';
+                } else {
+                    throw new Error('未获取到图片地址');
+                }
+            } catch (err) {
+                errorMsg.textContent = err.message;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '生成图片';
+            }
+        });
+    </script>
 </body>
 </html>
