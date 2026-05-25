@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qwen-Image 2.0 服装模特生成</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{max-width:800px;margin:30px auto;padding:0 20px;font-family:"微软雅黑";}
+        .box{background:#fff;padding:20px;border-radius:10px;margin:15px 0;box-shadow:0 2px 8px #eee;}
+        h2{font-size:18px;margin-bottom:10px;}
+        input,textarea{width:100%;padding:10px;margin:8px 0;border:1px solid #ddd;border-radius:6px;}
+        button{padding:10px 25px;background:#1677ff;color:#fff;border:none;border-radius:6px;cursor:pointer;}
+        button:disabled{background:#90b8f8;}
+        img{max-width:300px;margin-top:10px;display:none;border-radius:6px;}
+        .loading{color:#1677ff;margin:10px 0;display:none;}
+        .error{color:red;margin:10px 0;display:none;}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>1. 填写百炼API Key</h2>
+        <input type="text" id="apiKey" placeholder="粘贴你的API Key（sk-开头）">
+    </div>
+
+    <div class="box">
+        <h2>2. 上传服装图片</h2>
+        <input type="file" id="uploadImg" accept="image/*">
+        <img id="previewImg" alt="原图预览">
+    </div>
+
+    <div class="box">
+        <h2>3. 描述词</h2>
+        <textarea id="prompt" rows="3" placeholder="帅哥模特穿着这件红色衣服，户外高清写真，写实细节，自然光影"></textarea>
+        <button id="genBtn">开始生成</button>
+        <div class="loading" id="loadingText">正在生成中，请稍候...</div>
+        <div class="error" id="errorText"></div>
+    </div>
+
+    <div class="box">
+        <h2>4. 生成结果</h2>
+        <img id="resultImg" alt="AI生成结果">
+    </div>
+
+<script>
+const apiKeyInput = document.getElementById('apiKey');
+const uploadInput = document.getElementById('uploadImg');
+const previewImg = document.getElementById('previewImg');
+const promptInput = document.getElementById('prompt');
+const genBtn = document.getElementById('genBtn');
+const loadingText = document.getElementById('loadingText');
+const errorText = document.getElementById('errorText');
+const resultImg = document.getElementById('resultImg');
+
+let base64Img = '';
+
+// 图片预览
+uploadInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(res) {
+        previewImg.src = res.target.result;
+        previewImg.style.display = 'block';
+        base64Img = res.target.result;
+        errorText.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+});
+
+// 生成逻辑
+genBtn.addEventListener('click', async function() {
+    const apiKey = apiKeyInput.value.trim();
+    const prompt = promptInput.value.trim();
+
+    // 严格校验顺序
+    if (!apiKey) {
+        showError('请先填写API Key');
+        return;
+    }
+    if (!base64Img) {
+        showError('请先上传图片');
+        return;
+    }
+    if (!prompt) {
+        showError('请填写生成描述词');
+        return;
+    }
+
+    genBtn.disabled = true;
+    loadingText.style.display = 'block';
+    errorText.style.display = 'none';
+    resultImg.style.display = 'none';
+
+    try {
+        // 百炼官方图文生图专用接口，原生支持Base64图片，不用额外上传
+        const res = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: "qwen-image-2.0",
+                input: {
+                    reference_image: base64Img,
+                    prompt: prompt
+                },
+                parameters: {
+                    size: "1024*1024"
+                }
+            })
+        })
+
+        const data = await res.json();
+        if(data.output?.results?.[0]?.url){
+            resultImg.src = data.output.results[0].url;
+            resultImg.style.display = 'block';
+        }else{
+            throw new Error(JSON.stringify(data))
+        }
+    }catch(err){
+        showError('生成失败：'+err.message)
+        console.error(err)
+    }finally{
+        genBtn.disabled = false;
+        loadingText.style.display = 'none';
+    }
+})
+
+function showError(msg){
+    errorText.innerText = msg
+    errorText.style.display = 'block'
+}
+</script>
+</body>
+</html>
